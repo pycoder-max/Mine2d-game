@@ -19,6 +19,9 @@ class EditorUi:
         self.sox = sox
         self.soy = soy
 
+        self.cmx = 0 # clipped mouse x from orgin of nw cordinate system
+        self.cmy = 0 # clipped mouse y from orgin of nw cordinate system
+
         self.holding = [2, 3, 4, 11, 12, 8, 0, 0, 0]
 
     def event(self, event: tk.Event, etype: str):
@@ -44,17 +47,62 @@ class EditorUi:
             or level[y] [x + 1] or level[y] [x - 1]\
             or level[y + 1] [x + 1] or level[y + 1] [x - 1]\
             or level[y - 1] [x - 1] or level[y - 1] [x - 1]
+    
+    def is_tile_reachable_from_player(self, level : list[list[int]], playerx : float, playery : float, type = 0) -> bool:
+        targetX = self.mgx
+        targetY = self.mgy
 
-    def update(self, canvas: tk.Canvas, level: list[list[int]], cx: float, cy: float) -> list[list[int]]:
+        x_dif = targetX - int(playerx // TILE_SIZE) # x difference
+        y_dif = targetY - int(playery // TILE_SIZE) # y difference
+
+        x_dif = int(x_dif)
+        y_dif = int(y_dif)
+
+        rx = 0 # relative x
+        ry = 0 # relative y
+
+        sx, sy = 0, 0
+
+
+        if x_dif == 0 and y_dif == 0:
+            return False, [int(playerx // TILE_SIZE) + int(rx), int(playery // TILE_SIZE) + int(ry)]
+        
+        if x_dif != 0:
+            sx = abs(x_dif) / x_dif
+        if y_dif != 0:
+           sy = abs(y_dif) / y_dif
+
+        if type:
+            rx -= sx
+            ry -= sy
+
+        while (x_dif != 0  or y_dif != 0):
+            if x_dif != 0:
+                rx += sx
+                x_dif -= sx
+            if y_dif != 0:
+                ry += sy
+                y_dif -= sy
+            
+            if level[int(playery // TILE_SIZE) + int(ry)] [int(playerx // TILE_SIZE) + int(rx)] != 0:
+                return False, [int(playerx // TILE_SIZE) + int(rx), int(playery // TILE_SIZE) + int(ry)]
+        
+        return True, [int(playerx // TILE_SIZE) + int(rx),
+                     int(playery // TILE_SIZE) + int(ry)]
+        
+    def update(self, canvas: tk.Canvas, level: list[list[int]], cx: float, cy: float, playerx : float, playery : float) -> list[list[int]]:
         """
         Updates the editor UI.
         """
+        self.mgx, self.mgy = self.is_tile_reachable_from_player(level, playerx, playery)[1]
 
         self.draw_placeholder(canvas, cx, cy)
         self.draw_ui(canvas)
 
         self.mgx = int((cx + self.mx) // TILE_SIZE)
         self.mgy = int((cy + self.my + TILE_SIZE // 1.30) // TILE_SIZE) - 1
+
+        self.mgx, self.mgy = self.is_tile_reachable_from_player(level, playerx, playery)[1]
 
         brush = self.holding[self.selected]
 
@@ -68,11 +116,13 @@ class EditorUi:
             if self.state == 1:
                 if level[self.mgy] [self.mgx] == 0:
                     if self.is_tile_surounded(level, self.mgx, self.mgy):
-                        level[self.mgy] [self.mgx] = brush 
+                            if self.is_tile_reachable_from_player(level, playerx, playery)[0]:
+                                level[self.mgy] [self.mgx] = brush 
 
             if self.state == -1:
                 if level[self.mgy] [self.mgx] != 1:
-                    level[self.mgy] [self.mgx] = 0
+                        if self.is_tile_reachable_from_player(level, playerx, playery, 1)[0]:
+                            level[self.mgy] [self.mgx] = 0
         else:
             self.state = 0
 
@@ -91,6 +141,9 @@ class EditorUi:
         x -= cx % TILE_SIZE
         y -= cy % TILE_SIZE
 
+        self.cmx = x
+        self.cmy = y
+
         canvas.create_rectangle(x, y, x + TILE_SIZE, y + TILE_SIZE, width = 4, dash= "50")
 
     def draw_ui(self, canvas: tk.Canvas):
@@ -99,7 +152,7 @@ class EditorUi:
         bwidth = uiwidth / 9
 
         uix = self.sox - uiwidth // 2
-        uiy = self.soy + uihight * 3
+        uiy = self.soy + uihight * 3 + 60
 
         canvas.create_rectangle(uix, uiy, uix + uiwidth, uiy + uihight, fill= "#6f6f6f", outline= "")
         for i in range(9):
