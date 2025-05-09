@@ -29,7 +29,7 @@ def loop(time, tick = 0, t2 = t(), l_of_fps : list[float] = []):
 			canvas.config(bg = BG)
 
 			player.tick(canvas, tm.camera_x, tm.camera_y, delta, tm.level)
-			tm.level = lev_e.update(canvas, tm.level, tm.camera_x, tm.camera_y)
+			tm.level = lev_e.update(canvas, tm.level, tm.camera_x, tm.camera_y, player.x, player.y)
 
 
 		else:
